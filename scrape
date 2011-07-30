@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# This program calls the scraper with each day of the year as its argument,
+# and saves the output. This is how all the files got in the days directory.
+
+# a little warning because I just hand-edited 365 files... :-\
+echo "WARNING: If you run this script, all files in days/ will be overwritten"
+read blegh
+
+for m in January February March April May June July August September October November December
+do
+	for d in {1..31}
+	do
+		echo --------------------- scraping $m $d
+		./wikiscraper_en $m"_"$d | tee days/$m"_"$d
+		sleep .5
+	done
+done
