@@ -1,0 +1,45 @@
+#!/usr/bin/perl -w
+$|++;
+use strict;
+
+# This program scrapes the entries under "Holidays and observances" on the
+# Wikipedia page that is given by the first argument. Use the script
+# getinfo.sh to scrape multiple pages.
+
+my $flag = 0;
+my $firstprint = 1;
+my $debug = 0;
+
+print "Getting $ARGV[0]...\n" if $debug;
+
+for (`w3m en.wikipedia.org/wiki/$ARGV[0]`)
+{ 
+  if ($flag)
+  {
+    print "Checking next line is item...\n" if $debug;
+    chomp $_;
+    $flag = 0 if $_ =~ /edit/;
+    if ($_ =~ / • (.*)/)
+    {
+      next if $_ =~ /Christian/;
+      print "Yes, it's an item: $_" if $debug;
+      if ($firstprint)
+      {
+        print "$1";
+        $firstprint = 0;
+      }
+      else
+      {
+        print "\\\\\n$1";
+      }
+    }
+  }
+    
+  if ($_ =~ ".*edit.*Holidays and observances")
+  {
+    print "Found section containgin 'Holidays and observances'\n" if $debug;
+    $flag = 1;
+  }
+}  
+
+print "\n";

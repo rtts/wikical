@@ -1,0 +1,298 @@
+#!/usr/bin/perl -w
+$|++;
+use strict;
+use DateTime;
+use DateTime::Duration;
+use DateTime::Format::Strptime;
+
+# This program takes two command line arguments, a begin date and an end date
+# in the format DD-MM-YYYY, and generates on its standard output a LaTeX file
+# that pdflatex compiles to a A5-booklet calender  with each day annotated by
+# the contents of its corresponding  filename in the subdirectory days. These
+# files were generated using the program wikiscraper in the same subdirectory 
+
+# Created by J.J.Vens, 2010.
+# License: GPL
+
+our @daynames = qw(Monday Tuesday Wednesday Thursday Friday Saturday);
+our @monthnames = qw(January February March April May June July August October November December);
+
+my $oneday = DateTime::Duration->new(days=>1);
+my $oneweek = DateTime::Duration->new(weeks=>1);
+my $sixdays = DateTime::Duration->new(days=>6);
+my $dateparser = DateTime::Format::Strptime->new( pattern => '%d-%m-%Y' );
+
+my $start_date = $dateparser->parse_datetime($ARGV[0])
+   or die "Please specify a valid start date\n";
+my $end_date = $dateparser->parse_datetime($ARGV[1])
+   or die "Please specify a valid end date\n";
+
+$start_date->subtract_duration($oneday) until $start_date->wday == 1;
+$end_date->add_duration($oneday) until $end_date->wday == 7;
+
+my $duration = $end_date->delta_days($start_date) + $oneday;
+
+unless ($duration->weeks % 2)
+{
+  $end_date->add_duration($oneweek);
+  $duration = $end_date->delta_days($start_date) + $oneday;
+}
+
+my $weeks = $duration->weeks;
+die "Please specify a longer period\n" if $weeks <= 1;
+my $half_weeks = int(($weeks / 2));
+my $half_duration = DateTime::Duration->new(weeks=>$half_weeks);
+my $middle_date = $start_date + $half_duration;
+
+print STDERR "Start date: " . $start_date->strftime("%A %d-%m-%Y (week %V)\n");
+print STDERR "End date: " . $end_date->strftime("%A %d-%m-%Y (week %V)\n");
+print STDERR "First (middle) page: " . $middle_date->strftime("%A %d-%m-%Y (week %V)\n");
+print STDERR "Nr. of weeks: $weeks\n";
+
+my $tmpday;
+my $mon = $middle_date;
+my $tue = $mon + $oneday;
+my $wed = $tue + $oneday;
+my $thu = $wed + $oneday;
+my $fri = $thu + $oneday;
+my $sat = $fri + $oneday;
+my $sun = $sat + $oneday;
+
+my $oddpage = 1;
+
+&printheader;
+
+for my $page (1..$weeks)
+{
+  &printleft($mon, $tue, $wed);
+  &printright($thu, $fri, $sat, $sun);
+  
+  if ($oddpage)
+  {
+    $tmpday = $mon;
+    
+    # right page goes forward in time
+    $mon = $sun + $oneday;
+    $tue = $mon + $oneday;
+    $wed = $tue + $oneday;
+
+    # left page goes back in time
+    $sun = $tmpday - $oneday;
+    $sat = $sun - $oneday;
+    $fri = $sat - $oneday;
+    $thu = $fri - $oneday;
+    
+    $oddpage = 0;
+  }
+
+  else #evenpage
+  {
+    $tmpday = $wed;
+    
+    # right page goes back in time
+    $wed = $thu - $oneday;
+    $tue = $wed - $oneday;
+    $mon = $tue - $oneday;
+    
+    # left page goes forward in time
+    $thu = $tmpday + $oneday;
+    $fri = $thu + $oneday;
+    $sat = $fri + $oneday;
+    $sun = $sat + $oneday;
+    
+    $oddpage = 1;
+  }
+}
+
+&printfooter;
+
+
+sub printheader
+{
+
+print<<'LATEX';
+\documentclass[12pt,a4paper,landscape]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[margin=0cm]{geometry}
+\usepackage{color}
+\definecolor{unobtrusive}{gray}{0.9}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+\setlength{\unitlength}{1cm}
+\hyphenation{}
+\pdfinfo{
+ /Title (Personal Planner)
+ /Author (J.J.Vens)}
+\begin{document}
+\frenchspacing
+%\doublespacing
+
+LATEX
+ 
+} 
+
+sub printleft
+{
+  my $mon = shift;
+  my $tue = shift;
+  my $wed = shift;
+  my $sun = $mon + $sixdays;
+
+  my $monthmon = $mon->month_0;
+  my $monthtue = $tue->month_0;
+  my $monthwed = $wed->month_0;
+  my $monthsun = $sun->month_0;
+  
+  my $title = $monthnames[$monthmon];
+     $title = $title . " / " . $monthnames[$monthsun] unless $monthmon == $monthsun;
+     $title = $title . " " . $sun->year;
+  
+  my $subtitle= "week " . $mon->week_number;
+  my $maandag = $mon->strftime("%d");
+  my $monday = $mon->day;
+  my $dinsdag = $tue->strftime("%d");
+  my $tuesday = $tue->day;
+  my $woensdag = $wed->strftime("%d");
+  my $wednesday = $wed->day;
+  
+  my $wikimon = `cat days/$monday\_$monthnames[$monthmon]`;
+  my $wikitue = `cat days/$tuesday\_$monthnames[$monthtue]`;
+  my $wikiwed = `cat days/$wednesday\_$monthnames[$monthwed]`;
+
+  print<<LATEX;
+  \\begin{picture}(29.7,21)
+  \\linethickness{0.1pt}
+  
+  % Maand, week
+  \\put(0.5,19.86){\\mbox{\\fontsize{22}{22}\\selectfont\\bf $title}}
+  \\put(0.5,19.06){\\mbox{\\fontsize{22}{22}\\selectfont\\bf $subtitle}}
+  
+  % maandag
+  \\put(0.5,15.36){\\line(1,0){13.55}} %boven
+  \\put(0.5,10.74){\\line(1,0){13.55}} %onder
+  \\put(0.5,10.74){\\line(0,1){4.62}} %links
+  \\put(14.05,10.74){\\line(0,1){4.62}} %rechts
+  \\put(0.62,14.68){\\mbox{\\fontsize{22}{22}\\selectfont $maandag}}
+  \\put(8.88,10.89){\\makebox[5cm][r]{\\fontsize{12}{12}\\selectfont\\it monday}}
+  \\put(0.62,10.89){\\parbox[b]{10.78cm}{\\raggedright
+  \\color{unobtrusive}
+  $wikimon
+  }}
+  
+  % dinsdag
+  \\put(0.5,10.24){\\line(1,0){13.55}} %boven
+  \\put(0.5,5.62){\\line(1,0){13.55}} %onder 
+  \\put(0.5,5.62){\\line(0,1){4.62}} %links  
+  \\put(14.05,5.62){\\line(0,1){4.62}} %rechts
+  \\put(0.62,9.56){\\mbox{\\fontsize{22}{22}\\selectfont $dinsdag}}
+  \\put(8.88,5.77){\\makebox[5cm][r]{\\fontsize{12}{12}\\selectfont\\it tuesday}}
+  \\put(0.62,5.77){\\parbox[b]{10.78cm}{\\raggedright
+  \\color{unobtrusive}
+  $wikitue
+  }}
+  
+  % woensdag
+  \\put(0.5,5.12){\\line(1,0){13.55}} %boven
+  \\put(0.5,0.5){\\line(1,0){13.55}} %onder 
+  \\put(0.5,0.5){\\line(0,1){4.62}} %links  
+  \\put(14.05,0.5){\\line(0,1){4.62}} %rechts
+  \\put(0.62,4.44){\\mbox{\\fontsize{22}{22}\\selectfont $woensdag}}
+  \\put(8.88,0.65){\\makebox[5cm][r]{\\fontsize{12}{12}\\selectfont\\it wednesday}}
+  \\put(0.62,0.65){\\parbox[b]{10.78cm}{\\raggedright
+  \\color{unobtrusive}
+  $wikiwed
+  }}
+
+LATEX
+}
+
+sub printright
+{
+  my $thu = shift;
+  my $fri = shift;
+  my $sat = shift;
+  my $sun = shift;
+
+  my $monththu = $thu->month_0;
+  my $monthfri = $fri->month_0;
+  my $monthsat = $sat->month_0;
+  my $monthsun = $sun->month_0;
+  
+  my $donderdag = $thu->strftime("%d");
+  my $thursday = $thu->day;
+  my $vrijdag = $fri->strftime("%d");
+  my $friday = $fri->day;
+  my $zaterdag = $sat->strftime("%d");
+  my $saturday = $sat->day;
+  my $zondag = $sun->strftime("%d");
+  my $sunday = $sun->day;
+
+  my $wikithu = `cat days/$thursday\_$monthnames[$monththu]`;
+  my $wikifri = `cat days/$friday\_$monthnames[$monthfri]`;
+  my $wikisat = `cat days/$saturday\_$monthnames[$monthsat]`;
+  my $wikisun = `cat days/$sunday\_$monthnames[$monthsun]`;
+
+  print<<LATEX;
+  % donderdag
+  \\put(15.65,20.48){\\line(1,0){13.55}} %boven
+  \\put(15.65,15.86){\\line(1,0){13.55}} %onder
+  \\put(15.65,15.86){\\line(0,1){4.62}} %links 
+  \\put(29.2,15.86){\\line(0,1){4.62}} %rechts 
+  \\put(26.38,19.8){\\makebox[2.7cm][r]{\\fontsize{22}{22}\\selectfont $donderdag}}
+  \\put(15.77,16.01){\\mbox{\\fontsize{12}{12}\\selectfont\\it thursday}}  
+  \\put(18.27,16.01){\\parbox[b]{10.78cm}{\\raggedleft
+  \\color{unobtrusive}
+  $wikithu
+  }}
+
+  % vrijdag
+  \\put(15.65,15.36){\\line(1,0){13.55}} %boven
+  \\put(15.65,10.74){\\line(1,0){13.55}} %onder
+  \\put(15.65,10.74){\\line(0,1){4.62}} %links 
+  \\put(29.2,10.74){\\line(0,1){4.62}} %rechts 
+  \\put(26.38,14.68){\\makebox[2.7cm][r]{\\fontsize{22}{22}\\selectfont $vrijdag}}
+  \\put(15.77,10.89){\\mbox{\\fontsize{12}{12}\\selectfont\\it friday}}
+  \\put(18.27,10.89){\\parbox[b]{10.78cm}{\\raggedleft
+  \\color{unobtrusive}
+  $wikifri
+  }}
+  
+  % zaterdag
+  \\put(15.65,10.24){\\line(1,0){13.55}} %boven
+  \\put(15.65,5.62){\\line(1,0){13.55}} %onder 
+  \\put(15.65,5.62){\\line(0,1){4.62}} %links  
+  \\put(29.2,5.62){\\line(0,1){4.62}} %rechts  
+  \\put(26.38,9.56){\\makebox[2.7cm][r]{\\fontsize{22}{22}\\selectfont $zaterdag}}
+  \\put(15.77,5.77){\\mbox{\\fontsize{12}{12}\\selectfont\\it saturday}}
+  \\put(18.27,5.77){\\parbox[b]{10.78cm}{\\raggedleft
+  \\color{unobtrusive}
+  $wikisat
+  }}
+  
+  % zondag
+  \\put(15.65,5.12){\\line(1,0){13.55}} %boven
+  \\put(15.65,0.5){\\line(1,0){13.55}} %onder
+  \\put(15.65,0.5){\\line(0,1){4.62}} %links
+  \\put(29.2,0.5){\\line(0,1){4.62}} %rechts
+  \\put(26.38,4.44){\\makebox[2.7cm][r]{\\fontsize{22}{22}\\selectfont $zondag}}
+  \\put(15.77,0.65){\\mbox{\\fontsize{12}{12}\\selectfont\\it sunday}}
+  \\put(18.27,0.65){\\parbox[b]{10.78cm}{\\raggedleft
+  \\color{unobtrusive}
+  $wikisun
+  }}
+  
+  \\end{picture}
+  
+  \\newpage
+  
+LATEX
+
+}
+
+sub printfooter
+# you could add a final page that will be the cover of the planner
+{
+  print "\\end{document}";
+}
