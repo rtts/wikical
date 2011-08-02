@@ -117,7 +117,7 @@ print<<'LATEX';
 \usepackage{lmodern}
 \usepackage[margin=0cm]{geometry}
 \usepackage{color}
-\definecolor{unobtrusive}{gray}{0.5}
+\definecolor{unobtrusive}{gray}{0.75}
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{0pt}
 \setlength{\unitlength}{1cm}
