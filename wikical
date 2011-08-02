@@ -20,12 +20,14 @@ our @monthnames = qw(January February March April May June July August September
 my $oneday = DateTime::Duration->new(days=>1);
 my $oneweek = DateTime::Duration->new(weeks=>1);
 my $sixdays = DateTime::Duration->new(days=>6);
-my $dateparser = DateTime::Format::Strptime->new( pattern => '%d-%m-%Y' );
+my $dateparser = DateTime::Format::Strptime->new( pattern => '%m %d %Y' );
 
-my $start_date = $dateparser->parse_datetime($ARGV[0])
-   or die "Please specify a valid start date as DD-MM-YYYY\n";
-my $end_date = $dateparser->parse_datetime($ARGV[1])
-   or die "Please specify a valid end date as DD-MM-YYYY\n";
+die "Illegal date range\n" if $#ARGV != 5;
+
+my $start_date = $dateparser->parse_datetime("$ARGV[0] $ARGV[1] $ARGV[2]")
+   or die "Please specify a valid start date as MM DD YYYY\n";
+my $end_date = $dateparser->parse_datetime("$ARGV[3] $ARGV[4] $ARGV[5]")
+   or die "Please specify a valid end date as MM DD YYYY\n";
 
 $start_date->subtract_duration($oneday) until $start_date->wday == 1;
 $end_date->add_duration($oneday) until $end_date->wday == 7;
