@@ -8,6 +8,8 @@ contents of its corresponding filename in the subdirectory days. The directory
 is pre-populated with entries  that  come from their  corresponding  Wikipedia
 page, so by default you will get a *whole* lot of entries in your calendar!
 
+![Example page](https://raw.githubusercontent.com/rtts/wikical/main/example.png)
+
 You can edit the files in days/ to add or  remove entries before  generating a
 diary. This  is  the way to you add  your birthday  and other stuff. You might
 also want to add some Christian holidays, because the Wikipedia  scraper (also
